@@ -111,6 +111,12 @@ typedef struct Applet {
   HemisphereApplet* instance[APPLET_SLOTS];
 } Applet;
 
+// editable by cursor, and CV assignable
+typedef struct {
+    uint8_t &p; int min, max;
+    uint8_t x, y, w;
+} AppletParam;
+
 extern IOFrame frame;
 
 }
@@ -172,6 +178,7 @@ public:
     virtual void DrawFullScreen() {
         SetHelp();
 
+        // TODO: standard CV input assignment stuff, capture the cursor somehow
         for (int section = 0; section < 4; section++)
         {
             int y = section * 12 + 16;
