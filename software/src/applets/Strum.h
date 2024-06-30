@@ -236,7 +236,7 @@ private:
   int countdown = 0;
   int show_encoder = 0;
 
-  OC::SemitoneQuantizer input_quant;
+  util::SemitoneQuantizer input_quant;
   int8_t qselect = 0;
   int8_t qselect_mod = 0;
   bool qmod = 0; // switch CV between spacing and qselect

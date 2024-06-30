@@ -343,7 +343,7 @@ private:
     int trigpulse[2] = {0, 0}; // tick timer for Trig output modes
 
     // input quantizers, just because we need hysteresis
-    OC::SemitoneQuantizer input_quant[2];
+    util::SemitoneQuantizer input_quant[2];
 
     // Settings and modulated copies
     int qselect[2];
