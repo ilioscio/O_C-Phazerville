@@ -20,35 +20,67 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef UI_EVENTS_H_
-#define UI_EVENTS_H_
+#ifndef UI_EVENTS_QUEUE_H_
+#define UI_EVENTS_QUEUE_H_
 
 #include <Arduino.h>
-#include <stdint.h>
+#include "ui_events.h"
+#include "../../util/util_ringbuffer.h"
 
 namespace UI {
 
-enum EventType {
-  EVENT_NONE,
-  EVENT_BUTTON_DOWN,
-  EVENT_BUTTON_PRESS,
-  EVENT_BUTTON_LONG_PRESS,
-  EVENT_ENCODER
-};
+// Event queue for UI events
+// Meant for single producer/single consumer setting
+//
+// Yes, looks similar to stmlib::EventQueue, but hey, it's a queue for UI events.
+template <size_t size = 16>
+class EventQueue {
+public:
 
-// UI event struct
-// Yes, looks similar to stmlib::Event but hey, they're UI events.
-struct Event {
-  EventType type;
-  uint16_t control;
-  int16_t value;
-  uint16_t mask;
+  EventQueue() { }
 
-  Event() { }
-  Event(EventType t, uint16_t c, int16_t v, uint16_t m)
-  : type(t), control(c), value(v), mask(m) { }
+  void Init() {
+    events_.Init();
+    last_event_time_ = 0;
+  }
+
+  inline void Flush() {
+    events_.Flush();
+  }
+
+  inline bool available() const {
+    return events_.readable();
+  }
+
+  template <typename... Args>
+  inline void PushEvent(Args&&... args) {
+    events_.EmplaceWrite(std::forward<Args>(args)...);
+    Poke();
+  }
+
+  inline Event PullEvent() {
+    return std::move(events_.Read());
+  }
+
+  inline void Poke() {
+    last_event_time_ = millis();
+  }
+
+  inline uint32_t idle_time() const {
+    return millis() - last_event_time_;
+  }
+
+  // More for debugging purposes
+  inline bool writable() const {
+    return events_.writable();
+  }
+
+private:
+
+  util::RingBuffer<Event, size> events_;
+  uint32_t last_event_time_;
 };
 
 }; // namespace UI
 
-#endif // UI_EVENTS_H_
+#endif // UI_EVENTS_QUEUE_H_

@@ -7,6 +7,7 @@
  *
  */
 
+#include "OC_io.h"
 #include "HSMIDI.h"
 
 #ifdef ARDUINO_TEENSY41
@@ -328,25 +329,27 @@ typedef struct IOFrame {
 
     // TODO: Hardware IO should be extracted
     // --- Hard IO ---
-    void Load() {
-        clocked[0] = OC::DigitalInputs::clocked<OC::DIGITAL_INPUT_1>();
-        clocked[1] = OC::DigitalInputs::clocked<OC::DIGITAL_INPUT_2>();
-        clocked[2] = OC::DigitalInputs::clocked<OC::DIGITAL_INPUT_3>();
-        clocked[3] = OC::DigitalInputs::clocked<OC::DIGITAL_INPUT_4>();
-        gate_high[0] = OC::DigitalInputs::read_immediate<OC::DIGITAL_INPUT_1>();
-        gate_high[1] = OC::DigitalInputs::read_immediate<OC::DIGITAL_INPUT_2>();
-        gate_high[2] = OC::DigitalInputs::read_immediate<OC::DIGITAL_INPUT_3>();
-        gate_high[3] = OC::DigitalInputs::read_immediate<OC::DIGITAL_INPUT_4>();
+    void Load(OC::IOFrame *ioframe) {
+        auto triggers = ioframe->digital_inputs.triggered();
+
         for (int i = 0; i < ADC_CHANNEL_LAST; ++i) {
             // Set CV inputs
-            inputs[i] = OC::ADC::raw_pitch_value(ADC_CHANNEL(i));
+            inputs[i] = ioframe->cv.pitch_values[i];
+
 #ifdef ARDUINO_TEENSY41
             // T41: calculate gates/clocks for inputs 4-7 as well
-            if (i>3) {
-              gate_high[i] = inputs[i] > (12 << 7);
+            if (i >= 4) {
+              gate_high[i] = inputs[i] > (12 << 7); // 1V threshold
               clocked[i] = (gate_high[i] && last_cv[i] < (12 << 7));
+            } else {
+#endif
+              clocked[i] = triggers & DIGITAL_INPUT_MASK(i);
+              gate_high[i] = ioframe->digital_inputs.raised(static_cast<OC::DigitalInput>(i));
+#ifdef ARDUINO_TEENSY41
             }
 #endif
+
+            // some calculations for change detection
             if (abs(inputs[i] - last_cv[i]) > HEMISPHERE_CHANGE_THRESHOLD) {
                 changed_cv[i] = 1;
                 last_cv[i] = inputs[i];
@@ -358,9 +361,11 @@ typedef struct IOFrame {
             }
         }
     }
-    void Send() {
+    void Send(OC::IOFrame *ioframe) {
         for (int i = 0; i < DAC_CHANNEL_LAST; ++i) {
-            OC::DAC::set_pitch_scaled(DAC_CHANNEL(i), outputs[i], 0);
+          //OC::DAC::set_pitch_scaled(DAC_CHANNEL(i), outputs[i], 0);
+          // output scaling is built-in now?
+          ioframe->outputs.set_pitch_value(i, outputs[i]);
         }
         if (autoMIDIOut) MIDIState.Send(outputs);
 

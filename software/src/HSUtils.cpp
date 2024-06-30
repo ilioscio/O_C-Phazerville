@@ -2,6 +2,8 @@
 #include "OC_core.h"
 #include "HemisphereApplet.h"
 #include "HSUtils.h"
+#include "enigma/TuringMachine.h"
+#include "vector_osc/HSVectorOscillator.h"
 
 namespace HS {
 
@@ -9,6 +11,10 @@ namespace HS {
   PopupType popup_type = MENU_POPUP;
   uint8_t qview = 0; // which quantizer's setting is shown in popup
   bool q_edit = false; // flag to edit current quantizer
+
+  // All of the HS:: globals should be instantiated here
+  TuringMachine user_turing_machines[TURING_MACHINE_COUNT];
+  VOSegment user_waveforms[VO_SEGMENT_COUNT];
 
   braids::Quantizer quantizer[QUANT_CHANNEL_COUNT]; // global shared quantizers
   int quant_scale[QUANT_CHANNEL_COUNT];

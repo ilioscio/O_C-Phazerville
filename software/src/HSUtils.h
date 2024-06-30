@@ -95,6 +95,7 @@ static constexpr uint8_t pad(int range, int number) {
 
 namespace HS {
   enum PopupType {
+    POPUP_NONE,
     MENU_POPUP,
     CLOCK_POPUP, PRESET_POPUP,
     QUANTIZER_POPUP,
@@ -120,7 +121,7 @@ namespace HS {
 
   static inline void PokePopup(PopupType pop) {
     popup_type = pop;
-    popup_tick = OC::CORE::ticks;
+    popup_tick = pop ? OC::CORE::ticks : 0;
   }
 
   extern braids::Quantizer quantizer[QUANT_CHANNEL_COUNT]; // global shared quantizers

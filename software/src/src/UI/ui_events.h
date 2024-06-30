@@ -20,55 +20,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef UTIL_BUTTON_H_
-#define UTIL_BUTTON_H_
+#ifndef UI_EVENTS_H_
+#define UI_EVENTS_H_
 
 #include <Arduino.h>
-#include "../util/util_macros.h"
+#include <stdint.h>
 
 namespace UI {
 
-// Basic button/switch wrapper that has 7 bits of debouncing on press/release.
-class Button {
-public:
-  Button() { }
+enum EventType {
+  EVENT_NONE,
+  EVENT_BUTTON_DOWN,
+  EVENT_BUTTON_PRESS,
+  EVENT_BUTTON_LONG_PRESS,
+  EVENT_ENCODER
+};
 
-  void Init(uint8_t pin, uint8_t pin_mode) {
-    pin_ = pin;
-    pinMode(pin, pin_mode);
-    state_ = 0xff;
-  }
+// UI event struct
+// Yes, looks similar to stmlib::Event but hey, they're UI events.
+struct Event {
+  EventType type;
+  uint16_t control;
+  int16_t value;
+  uint16_t mask;
 
-  // @return True if pressed
-  uint8_t Poll() {
-    uint8_t state = (state_ << 1) | digitalReadFast(pin_);
-    state_ = state;
-    return !(state & 0x01);
-  }
+  Event() { }
+  Event(EventType t, uint16_t c, int16_t v, uint16_t m)
+  : type(t), control(c), value(v), mask(m) { }
 
-  inline bool pressed() const {
-    return state_ == 0x00;
-  }
-
-  inline bool just_pressed() const {
-    return state_ == 0x80;
-  }
-
-  inline bool released() const {
-    return state_ == 0x7f;
-  }
-
-  bool read_immediate() const {
-    return !digitalReadFast(pin_);
-  }
-
-private:
-  int pin_;
-  uint8_t state_;
-
-  DISALLOW_COPY_AND_ASSIGN(Button);
+  Event(const Event&)            = default;
+  Event(Event&&)                 = default;
+  Event& operator=(const Event&) = default;
+  Event& operator=(Event&&)      = default;
 };
 
 }; // namespace UI
 
-#endif // UTIL_BUTTON_H_
+#endif // UI_EVENTS_H_

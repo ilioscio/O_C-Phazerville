@@ -28,8 +28,6 @@
 #include "HSMIDI.h"
 #include "HSClockManager.h"
 #include "util/util_settings.h"
-#include "braids_quantizer.h"
-#include "braids_quantizer_scales.h"
 #include "OC_scales.h"
 #include "OC_autotuner.h"
 #include "SegmentDisplay.h"
@@ -183,33 +181,88 @@ public:
         }
     }
 
+  // TOTAL EEPROM SIZE: 4 * 29 bytes
+  SETTINGS_ARRAY_DECLARE() {{
+    {0, 0, 1, "validity flag", NULL, settings::STORAGE_TYPE_U8},
+
+    {0, 0, 65535, "Scale A", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "CV Scaling Factor A", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 255, "Offset Bias A", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Transpose A", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Root Key + Mode A", NULL, settings::STORAGE_TYPE_U8},
+
+    {0, 0, 65535, "Scale B", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "CV Scaling Factor B", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 255, "Offset Bias B", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Transpose B", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Root Key + Mode B", NULL, settings::STORAGE_TYPE_U8},
+
+    {0, 0, 65535, "Scale C", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "CV Scaling Factor C", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 255, "Offset Bias C", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Transpose C", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Root Key + Mode C", NULL, settings::STORAGE_TYPE_U8},
+
+    {0, 0, 65535, "Scale D", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "CV Scaling Factor D", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 255, "Offset Bias D", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Transpose D", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Root Key + Mode D", NULL, settings::STORAGE_TYPE_U8},
+
+#ifdef ARDUINO_TEENSY41
+    {0, 0, 65535, "Scale E", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "CV Scaling Factor E", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 255, "Offset Bias E", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Transpose E", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Root Key + Mode E", NULL, settings::STORAGE_TYPE_U8},
+
+    {0, 0, 65535, "Scale F", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "CV Scaling Factor F", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 255, "Offset Bias F", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Transpose F", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Root Key + Mode F", NULL, settings::STORAGE_TYPE_U8},
+
+    {0, 0, 65535, "Scale G", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "CV Scaling Factor G", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 255, "Offset Bias G", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Transpose G", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Root Key + Mode G", NULL, settings::STORAGE_TYPE_U8},
+
+    {0, 0, 65535, "Scale H", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "CV Scaling Factor H", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 255, "Offset Bias H", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Transpose H", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Root Key + Mode H", NULL, settings::STORAGE_TYPE_U8},
+#endif
+  }};
 };
+SETTINGS_ARRAY_DEFINE(Calibr8orPreset);
 
 Calibr8orPreset cal8_presets[NR_OF_PRESETS];
 
-class Calibr8or : public HSApplication {
+OC_APP_TRAITS(Calibr8or, TWOCCS("C8"), "Calibr8or", "Calibrator");
+class OC_APP_CLASS(Calibr8or), public HSApplication {
 public:
-    Calibr8or() {
-        for (int i = DAC_CHANNEL_A; i < DAC_CHANNEL_LAST; ++i) {
-            channel[i].chan_ = DAC_CHANNEL(i);
-        }
-    }
+  OC_APP_INTERFACE_DECLARE(Calibr8or);
+  OC_APP_STORAGE_SIZE( Calibr8orPreset::storageSize() * NR_OF_PRESETS );
 
   OC::Autotuner<Cal8ChannelConfig> autotuner;
 
-
-    void Start() {
-        segment.Init(SegmentSize::BIG_SEGMENTS);
-
-        // make sure to turn this off, just in case
-        FreqMeasure.end();
-        OC::DigitalInputs::reInit();
-
-        // This initializes the global HS Quantizers
-        ClearPreset();
-
-        autotuner.Init();
+	void Start() {
+    for (int i = DAC_CHANNEL_A; i < DAC_CHANNEL_LAST; ++i) {
+      channel[i].chan_ = DAC_CHANNEL(i);
     }
+    segment.Init(SegmentSize::BIG_SEGMENTS);
+
+    // make sure to turn this off, just in case
+    FreqMeasure.end();
+    OC::DigitalInputs::reInit();
+
+    // This initializes the global HS Quantizers
+    ClearPreset();
+
+    autotuner.Init();
+	}
 	
     void ClearPreset() {
         for (int ch = 0; ch < QUANT_CHANNEL_COUNT; ++ch) {
@@ -360,7 +413,7 @@ public:
             }
 
             int output_cv = cfg.last_note;
-            if ( OC::DAC::calibration_data_used( DAC_CHANNEL(sel_chan) ) != 0x01 ) // not autotuned
+            if ( !io_settings().autotune_data_enabled(sel_chan) )
                 output_cv = output_cv * (CAL8OR_PRECISION + cfg.scale_factor) / CAL8OR_PRECISION;
             output_cv += cfg.offset;
 
@@ -372,7 +425,7 @@ public:
         }
     }
 
-    void View() {
+    void View() const {
         if (clock_setup) {
             ClockSetup_instance.View();
             return;
@@ -525,7 +578,7 @@ public:
           HS::q_octave[sel_chan] += direction;
           CONSTRAIN(HS::q_octave[sel_chan], -5, 5);
         }
-        else if ( OC::DAC::calibration_data_used( DAC_CHANNEL(sel_chan) ) != 0x01 ) // not autotuned
+        else if ( !io_settings().autotune_data_enabled(sel_chan) )
         {
             // Tracking compensation
             channel[sel_chan].scale_factor = constrain(channel[sel_chan].scale_factor + direction, -500, 500);
@@ -669,7 +722,7 @@ public:
         y += 22;
         gfxIcon(9, y, ZAP_ICON);
 
-        if ( OC::DAC::calibration_data_used( DAC_CHANNEL(sel_chan) ) == 0x01 ) {
+        if ( io_settings().autotune_data_enabled(sel_chan) ) {
             gfxPrint(20, y, "(auto) ");
         } else {
             int whole = (channel[sel_chan].scale_factor + CAL8OR_PRECISION) / 100;
@@ -692,100 +745,42 @@ public:
     }
 };
 
-// TOTAL EEPROM SIZE: 4 * 29 bytes
-SETTINGS_DECLARE(Calibr8orPreset, CAL8_SETTING_LAST) {
-    {0, 0, 1, "validity flag", NULL, settings::STORAGE_TYPE_U8},
-
-    {0, 0, 65535, "Scale A", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "CV Scaling Factor A", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 255, "Offset Bias A", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Transpose A", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Root Key + Mode A", NULL, settings::STORAGE_TYPE_U8},
-
-    {0, 0, 65535, "Scale B", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "CV Scaling Factor B", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 255, "Offset Bias B", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Transpose B", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Root Key + Mode B", NULL, settings::STORAGE_TYPE_U8},
-
-    {0, 0, 65535, "Scale C", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "CV Scaling Factor C", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 255, "Offset Bias C", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Transpose C", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Root Key + Mode C", NULL, settings::STORAGE_TYPE_U8},
-
-    {0, 0, 65535, "Scale D", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "CV Scaling Factor D", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 255, "Offset Bias D", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Transpose D", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Root Key + Mode D", NULL, settings::STORAGE_TYPE_U8},
-
-#ifdef ARDUINO_TEENSY41
-    {0, 0, 65535, "Scale E", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "CV Scaling Factor E", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 255, "Offset Bias E", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Transpose E", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Root Key + Mode E", NULL, settings::STORAGE_TYPE_U8},
-
-    {0, 0, 65535, "Scale F", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "CV Scaling Factor F", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 255, "Offset Bias F", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Transpose F", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Root Key + Mode F", NULL, settings::STORAGE_TYPE_U8},
-
-    {0, 0, 65535, "Scale G", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "CV Scaling Factor G", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 255, "Offset Bias G", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Transpose G", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Root Key + Mode G", NULL, settings::STORAGE_TYPE_U8},
-
-    {0, 0, 65535, "Scale H", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "CV Scaling Factor H", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 255, "Offset Bias H", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Transpose H", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Root Key + Mode H", NULL, settings::STORAGE_TYPE_U8},
-#endif
-};
-
-
-Calibr8or Calibr8or_instance;
 
 // App stubs
-void Calibr8or_init() { Calibr8or_instance.BaseStart(); }
+void Calibr8or::Init() { BaseStart(); }
 
 static constexpr size_t Calibr8or_storageSize() {
     return Calibr8orPreset::storageSize() * NR_OF_PRESETS;
 }
 
-static size_t Calibr8or_save(void *storage) {
-    size_t used = 0;
+size_t Calibr8or::SaveAppData(util::StreamBufferWriter &stream_buffer) const {
     for (int i = 0; i < NR_OF_PRESETS; ++i) {
-        used += cal8_presets[i].Save(static_cast<char*>(storage) + used);
+        cal8_presets[i].Save(stream_buffer);
     }
-    return used;
+  return stream_buffer.written();
 }
 
-static size_t Calibr8or_restore(const void *storage) {
-    size_t used = 0;
+size_t Calibr8or::RestoreAppData(util::StreamBufferReader &stream_buffer) {
     for (int i = 0; i < NR_OF_PRESETS; ++i) {
-        used += cal8_presets[i].Restore(static_cast<const char*>(storage) + used);
+        cal8_presets[i].Restore(stream_buffer);
     }
-    Calibr8or_instance.LoadPreset();
-    return used;
+    LoadPreset();
+  return stream_buffer.read();
 }
 
-void Calibr8or_isr() {
-    if (Calibr8or_instance.autotuner.active()) {
-      Calibr8or_instance.autotuner.ISR();
+void Calibr8or::Process(OC::IOFrame *ioframe) {
+    if (autotuner.active()) {
+      //autotuner.ISR();
+      autotuner.Tick();
       return;
     }
-    Calibr8or_instance.BaseController();
+    BaseController(ioframe);
 }
 
-void Calibr8or_handleAppEvent(OC::AppEvent event) {
+void Calibr8or::HandleAppEvent(OC::AppEvent event) {
     switch (event) {
     case OC::APP_EVENT_RESUME:
-        Calibr8or_instance.Resume();
+        Resume();
         break;
 
     // The idea is to auto-save when the screen times out...
@@ -797,17 +792,17 @@ void Calibr8or_handleAppEvent(OC::AppEvent event) {
     }
 }
 
-void Calibr8or_loop() {} // Deprecated
+void Calibr8or::Loop() {} // Deprecated
 
-void Calibr8or_menu() { Calibr8or_instance.BaseView(); }
+void Calibr8or::DrawMenu() const { BaseView(); }
 
-void Calibr8or_screensaver() {
-    Calibr8or_instance.BaseScreensaver(true);
+void Calibr8or::DrawScreensaver() const {
+    BaseScreensaver(true);
 }
 
-void Calibr8or_handleButtonEvent(const UI::Event &event) {
-  if (Calibr8or_instance.autotuner.active()) {
-    Calibr8or_instance.autotuner.HandleButtonEvent(event);
+void Calibr8or::HandleButtonEvent(const UI::Event &event) {
+  if (autotuner.active()) {
+    autotuner.HandleButtonEvent(event);
     return;
   }
   
@@ -820,30 +815,30 @@ void Calibr8or_handleButtonEvent(const UI::Event &event) {
 #ifdef VOR
         if (event.control != OC::CONTROL_BUTTON_M)
 #endif
-        Calibr8or_instance.OnButtonDown(event);
+        OnButtonDown(event);
 
         break;
     case UI::EVENT_BUTTON_PRESS: {
         switch (event.control) {
         case OC::CONTROL_BUTTON_L:
-            Calibr8or_instance.OnLeftButtonPress();
+            OnLeftButtonPress();
             break;
         case OC::CONTROL_BUTTON_R:
-            Calibr8or_instance.OnRightButtonPress();
+            OnRightButtonPress();
             break;
         case OC::CONTROL_BUTTON_DOWN:
         case OC::CONTROL_BUTTON_UP:
-            Calibr8or_instance.SwitchChannel(event.control == OC::CONTROL_BUTTON_UP);
+            SwitchChannel(event.control == OC::CONTROL_BUTTON_UP);
             break;
         default: break;
         }
     } break;
     case UI::EVENT_BUTTON_LONG_PRESS:
         if (event.control == OC::CONTROL_BUTTON_L) {
-            Calibr8or_instance.OnLeftButtonLongPress();
+            OnLeftButtonLongPress();
         }
         if (event.control == OC::CONTROL_BUTTON_DOWN) {
-            Calibr8or_instance.OnDownButtonLongPress();
+            OnDownButtonLongPress();
         }
         break;
 
@@ -851,17 +846,17 @@ void Calibr8or_handleButtonEvent(const UI::Event &event) {
     }
 }
 
-void Calibr8or_handleEncoderEvent(const UI::Event &event) {
-  if (Calibr8or_instance.autotuner.active()) {
-    Calibr8or_instance.autotuner.HandleEncoderEvent(event);
+void Calibr8or::HandleEncoderEvent(const UI::Event &event) {
+  if (autotuner.active()) {
+    autotuner.HandleEncoderEvent(event);
     return;
   }
 
     // Left encoder turned
-    if (event.control == OC::CONTROL_ENCODER_L) Calibr8or_instance.OnLeftEncoderMove(event.value);
+    if (event.control == OC::CONTROL_ENCODER_L) OnLeftEncoderMove(event.value);
 
     // Right encoder turned
-    if (event.control == OC::CONTROL_ENCODER_R) Calibr8or_instance.OnRightEncoderMove(event.value);
+    if (event.control == OC::CONTROL_ENCODER_R) OnRightEncoderMove(event.value);
 }
 
 #endif // ENABLE_APP_CALIBR8OR

@@ -18,9 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef _HEM_APP_HEMISPHERE_H_
-#define _HEM_APP_HEMISPHERE_H_
-
 #include "OC_DAC.h"
 #include "OC_digital_inputs.h"
 #include "OC_visualfx.h"
@@ -203,7 +200,28 @@ public:
         }
     }
 
+  // TOTAL EEPROM SIZE: 8 presets * 32 bytes
+  SETTINGS_ARRAY_DECLARE() {{
+    {0, 0, 255, "Applet ID L", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 255, "Applet ID R", NULL, settings::STORAGE_TYPE_U8},
+    {0, 0, 65535, "Data L block 1", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Data R block 1", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Data L block 2", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Data R block 2", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Data L block 3", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Data R block 3", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Data L block 4", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Data R block 4", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Clock data 1", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Clock data 2", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Clock data 3", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Clock data 4", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Trig Input Map", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "CV Input Map", NULL, settings::STORAGE_TYPE_U16},
+    {0, 0, 65535, "Misc Globals", NULL, settings::STORAGE_TYPE_U16}
+  }};
 };
+SETTINGS_ARRAY_DEFINE(HemispherePreset);
 
 // HemispherePreset hem_config; // special place for Clock data and Config data, 64 bits each
 
@@ -218,8 +236,12 @@ using namespace HS;
 
 void ReceiveManagerSysEx();
 
-class HemisphereManager : public HSApplication {
+OC_APP_TRAITS(AppHemisphere, TWOCCS("HS"), "Hemisphere", "Applets");
+class OC_APP_CLASS(AppHemisphere), public HSApplication {
 public:
+  OC_APP_INTERFACE_DECLARE(AppHemisphere);
+  OC_APP_STORAGE_SIZE( HemispherePreset::storageSize() * HEM_NR_OF_PRESETS );
+
     void Start() {
         //select_mode = -1; // Not selecting
 
@@ -443,7 +465,7 @@ public:
 #endif
     }
 
-    void View() {
+    void View() const {
         bool draw_applets = true;
 
         if (preset_cursor) {
@@ -479,6 +501,7 @@ public:
             break;
           }
 
+          if (!draw_applets && popup_type == MENU_POPUP) PokePopup(POPUP_NONE); // cancel popup
         }
 
         if (HS::q_edit)
@@ -719,50 +742,6 @@ public:
         }
 
         help_hemisphere = hemisphere;
-    }
-
-    void HandleButtonEvent(const UI::Event &event) {
-        switch (event.type) {
-        case UI::EVENT_BUTTON_DOWN:
-            if (event.control == OC::CONTROL_BUTTON_M) {
-                ToggleClockRun();
-                OC::ui.SetButtonIgnoreMask(); // ignore release and long-press
-                break;
-            }
-            if (HS::q_edit) {
-              if (event.control == OC::CONTROL_BUTTON_UP)
-                ++HS::q_octave[HS::qview];
-              else if (event.control == OC::CONTROL_BUTTON_DOWN)
-                --HS::q_octave[HS::qview];
-              else
-                HS::q_edit = false;
-
-              CONSTRAIN(HS::q_octave[HS::qview], -5, 5);
-              OC::ui.SetButtonIgnoreMask();
-              break;
-            }
-            // most button-down events fall through here
-        case UI::EVENT_BUTTON_PRESS:
-
-            if (event.control == OC::CONTROL_BUTTON_UP || event.control == OC::CONTROL_BUTTON_DOWN) {
-                DelegateSelectButtonPush(event);
-            } else if (event.control == OC::CONTROL_BUTTON_L || event.control == OC::CONTROL_BUTTON_R) {
-                DelegateEncoderPush(event);
-            }
-#ifdef ARDUINO_TEENSY41
-            else // new buttons
-                ExtraButtonPush(event);
-#endif
-
-            break;
-
-        case UI::EVENT_BUTTON_LONG_PRESS:
-            if (event.control == OC::CONTROL_BUTTON_DOWN) ToggleConfigMenu();
-            if (event.control == OC::CONTROL_BUTTON_L) ToggleClockRun();
-            break;
-
-        default: break;
-        }
     }
 
 private:
@@ -1145,29 +1124,6 @@ private:
     }
 };
 
-// TOTAL EEPROM SIZE: 8 presets * 32 bytes
-SETTINGS_DECLARE(HemispherePreset, HEMISPHERE_SETTING_LAST) {
-    {0, 0, 255, "Applet ID L", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 255, "Applet ID R", NULL, settings::STORAGE_TYPE_U8},
-    {0, 0, 65535, "Data L block 1", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Data R block 1", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Data L block 2", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Data R block 2", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Data L block 3", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Data R block 3", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Data L block 4", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Data R block 4", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Clock data 1", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Clock data 2", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Clock data 3", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Clock data 4", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Trig Input Map", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "CV Input Map", NULL, settings::STORAGE_TYPE_U16},
-    {0, 0, 65535, "Misc Globals", NULL, settings::STORAGE_TYPE_U16}
-};
-
-HemisphereManager manager;
-
 void ReceiveManagerSysEx() {
     if (hem_active_preset)
         hem_active_preset->OnReceiveSysEx();
@@ -1178,56 +1134,68 @@ void ReceiveManagerSysEx() {
 ////////////////////////////////////////////////////////////////////////////////
 
 // App stubs
-void HEMISPHERE_init() {
-    manager.BaseStart();
+void AppHemisphere::Init() {
+  BaseStart();
 }
 
-static constexpr size_t HEMISPHERE_storageSize() {
-    return HemispherePreset::storageSize() * HEM_NR_OF_PRESETS;
+size_t AppHemisphere::SaveAppData(util::StreamBufferWriter &stream_buffer) const {
+  for (int i = 0; i < HEM_NR_OF_PRESETS; ++i) {
+    hem_presets[i].Save(stream_buffer);
+  }
+  return stream_buffer.written();
 }
 
-static size_t HEMISPHERE_save(void *storage) {
-    size_t used = 0;
-    for (int i = 0; i < HEM_NR_OF_PRESETS; ++i) {
-        used += hem_presets[i].Save(static_cast<char*>(storage) + used);
-    }
-    return used;
+size_t AppHemisphere::RestoreAppData(util::StreamBufferReader &stream_buffer) {
+  for (int i = 0; i < HEM_NR_OF_PRESETS; ++i) {
+    hem_presets[i].Restore(stream_buffer);
+  }
+  return stream_buffer.read();
 }
 
-static size_t HEMISPHERE_restore(const void *storage) {
-    size_t used = 0;
-    for (int i = 0; i < HEM_NR_OF_PRESETS; ++i) {
-        used += hem_presets[i].Restore(static_cast<const char*>(storage) + used);
-    }
-    return used;
+void AppHemisphere::Process(OC::IOFrame *ioframe) {
+  BaseController(ioframe);
+}
+void AppHemisphere::GetIOConfig(OC::IOConfig &ioconfig) const
+{
+  using namespace OC;
+  ioconfig.digital_inputs[DIGITAL_INPUT_1].set("TR1");
+  ioconfig.digital_inputs[DIGITAL_INPUT_2].set("TR2");
+  ioconfig.digital_inputs[DIGITAL_INPUT_3].set("TR3");
+  ioconfig.digital_inputs[DIGITAL_INPUT_4].set("TR4");
+
+  ioconfig.cv[ADC_CHANNEL_1].set("CV1");
+  ioconfig.cv[ADC_CHANNEL_2].set("CV2");
+  ioconfig.cv[ADC_CHANNEL_3].set("CV3");
+  ioconfig.cv[ADC_CHANNEL_4].set("CV4");
+
+  ioconfig.outputs[DAC_CHANNEL_A].set("Left A", OUTPUT_MODE_PITCH);
+  ioconfig.outputs[DAC_CHANNEL_B].set("Left B", OUTPUT_MODE_PITCH);
+  ioconfig.outputs[DAC_CHANNEL_C].set("Right C", OUTPUT_MODE_PITCH);
+  ioconfig.outputs[DAC_CHANNEL_D].set("Right D", OUTPUT_MODE_PITCH);
 }
 
-void FASTRUN HEMISPHERE_isr() {
-    manager.BaseController();
-}
-
-void HEMISPHERE_handleAppEvent(OC::AppEvent event) {
+void AppHemisphere::HandleAppEvent(OC::AppEvent event) {
     switch (event) {
     case OC::APP_EVENT_RESUME:
-        manager.Resume();
+        Resume();
         break;
 
     case OC::APP_EVENT_SCREENSAVER_ON:
     case OC::APP_EVENT_SUSPEND:
-        manager.Suspend();
+        Suspend();
         break;
 
     default: break;
     }
 }
 
-void HEMISPHERE_loop() {} // Essentially deprecated in favor of ISR
+void AppHemisphere::Loop() {} // Essentially deprecated in favor of ISR
 
-void HEMISPHERE_menu() {
-    manager.View();
+void AppHemisphere::DrawMenu() const {
+    View();
 }
 
-void HEMISPHERE_screensaver() {
+void AppHemisphere::DrawScreensaver() const {
     switch (HS::screensaver_mode) {
     case 0x3: // Zips or Stars
         ZapScreensaver(true);
@@ -1237,18 +1205,58 @@ void HEMISPHERE_screensaver() {
         OC::scope_render();
         break;
     case 0x1: // Meters
-        manager.BaseScreensaver(true); // show note names
+        BaseScreensaver(true); // show note names
         break;
     default: break; // blank screen
     }
 }
-
-void HEMISPHERE_handleButtonEvent(const UI::Event &event) {
-    manager.HandleButtonEvent(event);
+void AppHemisphere::DrawDebugInfo() const {
+  // TODO:
 }
 
-void HEMISPHERE_handleEncoderEvent(const UI::Event &event) {
-    manager.DelegateEncoderMovement(event);
-}
+void AppHemisphere::HandleButtonEvent(const UI::Event &event) {
+    switch (event.type) {
+      case UI::EVENT_BUTTON_DOWN:
+        if (event.control == OC::CONTROL_BUTTON_M) {
+            ToggleClockRun();
+            OC::ui.SetButtonIgnoreMask(); // ignore release and long-press
+            break;
+        }
+        if (HS::q_edit) {
+          if (event.control == OC::CONTROL_BUTTON_UP)
+            ++HS::q_octave[HS::qview];
+          else if (event.control == OC::CONTROL_BUTTON_DOWN)
+            --HS::q_octave[HS::qview];
+          else
+            HS::q_edit = false;
 
+          CONSTRAIN(HS::q_octave[HS::qview], -5, 5);
+          OC::ui.SetButtonIgnoreMask();
+          break;
+        }
+        // most button-down events fall through here
+      case UI::EVENT_BUTTON_PRESS:
+        if (event.control == OC::CONTROL_BUTTON_UP || event.control == OC::CONTROL_BUTTON_DOWN) {
+            DelegateSelectButtonPush(event);
+        } else if (event.control == OC::CONTROL_BUTTON_L || event.control == OC::CONTROL_BUTTON_R) {
+            DelegateEncoderPush(event);
+        }
+#ifdef ARDUINO_TEENSY41
+        else // new buttons
+            ExtraButtonPush(event);
 #endif
+
+        break;
+
+      case UI::EVENT_BUTTON_LONG_PRESS:
+        if (event.control == OC::CONTROL_BUTTON_DOWN) ToggleConfigMenu();
+        if (event.control == OC::CONTROL_BUTTON_L) ToggleClockRun();
+        break;
+
+      default: break;
+    }
+}
+
+void AppHemisphere::HandleEncoderEvent(const UI::Event &event) {
+    DelegateEncoderMovement(event);
+}
