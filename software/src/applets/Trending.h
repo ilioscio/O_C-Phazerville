@@ -126,13 +126,13 @@ protected:
         help[HELP_DIGITAL2] = "";
         help[HELP_CV1]      = "Sig 1";
         help[HELP_CV2]      = "Sig 2";
-        help[HELP_OUT1]     = Trending_assignments[assign[0];
-        help[HELP_OUT2]     = Trending_assignments[assign[1];
+        help[HELP_OUT1]     = Trending_assignments[assign[0]];
+        help[HELP_OUT2]     = Trending_assignments[assign[1]];
         help[HELP_EXTRA1] = "";
         help[HELP_EXTRA2] = "Enc:Mode, Sensitivity";
        //                   "---------------------" <-- Extra text size guide
     }
-    
+
 private:
     int cursor;
     int signal[2];
