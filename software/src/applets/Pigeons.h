@@ -156,9 +156,9 @@ private:
 
         uint8_t Get() { return val[index]; }
         uint8_t Bump() {
+            if (0 == (val[0] + val[1])) ++val[index]; // revival
             val[index] = (val[0] + val[1]) % mod_v;
             index = !index;
-            if (0 == (val[0] + val[1])) ++val[index]; // revival
             return val[index];
         }
     } pigeons[2];
