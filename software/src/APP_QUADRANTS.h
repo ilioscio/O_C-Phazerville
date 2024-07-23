@@ -225,9 +225,6 @@ void QuadrantBeatSync();
 class QuadAppletManager : public HSApplication {
 public:
     void Start() {
-        select_mode = -1; // Not selecting
-
-        //zoom_slot = -1;
 
         for (int i = 0; i < 4; ++i) {
             quant_scale[i] = OC::Scales::SCALE_SEMI;
@@ -345,10 +342,6 @@ public:
     void ChangeApplet(HEM_SIDE h, int dir) {
         int index = HS::get_next_applet_index(next_applet_index[h], dir);
         next_applet_index[h] = index;
-    }
-
-    bool SelectModeEnabled() {
-        return select_mode > -1;
     }
 
     template <typename T1, typename T2, typename T3>
@@ -488,8 +481,10 @@ public:
                 if (slot > 1) gfxInvert(1 + h*64, 1, 54, 10);
             }
 
-            if (select_mode % 2 == LEFT_HEMISPHERE) graphics.drawFrame(0, 0, 64, 64);
-            if (select_mode % 2 == RIGHT_HEMISPHERE) graphics.drawFrame(64, 0, 64, 64);
+            if (select_mode) {
+              graphics.drawFrame(0, 0, 64, 64);
+              graphics.drawFrame(64, 0, 64, 64);
+            }
 
             // vertical separator
             graphics.drawLine(63, 0, 63, 63, 2);
@@ -528,11 +523,7 @@ public:
           return;
         }
 
-        if (select_mode == slot) {
-          select_mode = -1; // Pushing a button for the selected side turns off select mode
-        } else {
-          active_applet[slot]->OnButtonPress();
-        }
+        active_applet[slot]->OnButtonPress();
     }
 
     const HEM_SIDE ButtonToSlot(const UI::Event &event) {
@@ -556,13 +547,11 @@ public:
         // dual press A+B for Clock Setup
         if (event.mask == (OC::CONTROL_BUTTON_A | OC::CONTROL_BUTTON_B)) {
             view_state = CLOCK_SETUP;
-            select_mode = -1;
             return true;
         }
         // dual press X+Y for Audio Setup
         if (event.mask == (OC::CONTROL_BUTTON_X | OC::CONTROL_BUTTON_Y)) {
             view_state = AUDIO_SETUP;
-            select_mode = -1;
             return true;
         }
         // dual press A+X for Load Preset
@@ -589,7 +578,6 @@ public:
         // cancel fullscreen or anything else
         if (view_state != APPLETS) {
           view_state = APPLETS;
-          select_mode = -1;
           return true;
         }
 
@@ -629,7 +617,8 @@ public:
             ClockSetup_instance.OnLeftEncoderMove(event.value);
           else
             ClockSetup_instance.OnEncoderMove(event.value);
-        } else if (select_mode == slot) {
+        } else if (event.mask & (OC::CONTROL_BUTTON_X | OC::CONTROL_BUTTON_Y)) {
+            // hold down X or Y to change applet with encoder
             ChangeApplet(slot, event.value);
         } else {
             active_applet[slot]->OnEncoderMove(event.value);
@@ -648,12 +637,10 @@ public:
       } else {
         SetConfigPageFromCursor();
       }
-      select_mode = -1;
     }
     void ShowPresetSelector() {
       config_cursor = LOAD_PRESET;
       preset_cursor = preset_id + 1;
-      select_mode = -1;
     }
 
     // this toggles the view on a given side
@@ -664,7 +651,6 @@ public:
       view_slot[h] = 1 - view_slot[h];
       if (zoom_slot % 2 == h) // switch full screen slot if necessary
         zoom_slot = HEM_SIDE(view_slot[h]*2 + h);
-      select_mode = -1;
     }
 
     // this brings a specific applet into view on the appropriate side
@@ -678,10 +664,12 @@ public:
     void SetFullScreen(HEM_SIDE hemisphere) {
       zoom_slot = hemisphere;
       view_state = APPLET_FULLSCREEN;
-      select_mode = -1;
     }
 
     void HandleButtonEvent(const UI::Event &event) {
+        // tracks whether X or Y are being held down
+        select_mode = (event.mask & (OC::CONTROL_BUTTON_X | OC::CONTROL_BUTTON_Y));
+
         switch (event.type) {
         case UI::EVENT_BUTTON_DOWN:
 
@@ -727,8 +715,10 @@ public:
             case OC::CONTROL_BUTTON_B:
             case OC::CONTROL_BUTTON_X:
             case OC::CONTROL_BUTTON_Y:
-              if (CheckButtonCombos(event))
+              if (CheckButtonCombos(event)) {
+                select_mode = false;
                 OC::ui.SetButtonIgnoreMask(); // ignore release and long-press
+              }
               break;
 
             default:
@@ -758,16 +748,6 @@ public:
 
         case UI::EVENT_BUTTON_LONG_PRESS:
           if (event.control == OC::CONTROL_BUTTON_B) ToggleConfigMenu();
-
-          if (event.control == OC::CONTROL_BUTTON_X) {
-            // applet select left side
-            select_mode = HEM_SIDE(view_slot[0]*2 + 0);
-          }
-          if (event.control == OC::CONTROL_BUTTON_Y) {
-            // applet select right side
-            select_mode = HEM_SIDE(view_slot[1]*2 + 1);
-          }
-          //if (event.control == OC::CONTROL_BUTTON_L) ToggleClockRun();
           break;
 
         default: break;
@@ -788,7 +768,7 @@ private:
     bool isEditing = false;
     int config_cursor = 0;
 
-    int select_mode = -1;
+    bool select_mode = 0;
     HEM_SIDE zoom_slot; // Which of the hemispheres (if any) is in fullscreen/help mode
 
     // State machine
@@ -913,7 +893,6 @@ private:
             preset_cursor = 0; // deactivate preset selection
             config_page = HIDE_CONFIG;
             view_state = APPLETS;
-            select_mode = -1;
             isEditing = false;
             return;
         }
