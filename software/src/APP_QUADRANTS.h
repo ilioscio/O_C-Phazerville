@@ -664,6 +664,9 @@ public:
       zoom_slot = hemisphere;
       view_state = APPLET_FULLSCREEN;
     }
+    void ToggleFullScreen() {
+      view_state = (view_state == APPLET_FULLSCREEN) ? APPLETS : APPLET_FULLSCREEN;
+    }
 
     void HandleButtonEvent(const UI::Event &event) {
         // tracks whether X or Y are being held down
@@ -678,8 +681,10 @@ public:
               HS::NudgeOctave(HS::qview, 1);
             else if (event.control == OC::CONTROL_BUTTON_DOWN)
               HS::NudgeOctave(HS::qview, -1);
-            else
+            else {
               HS::q_edit = false;
+              select_mode = false;
+            }
 
             OC::ui.SetButtonIgnoreMask();
             break;
@@ -687,11 +692,9 @@ public:
 
           switch (event.control) {
             case OC::CONTROL_BUTTON_Z:
-              // TODO: check modifiers
-              if (event.mask & OC::CONTROL_BUTTON_X) {
-                break;
-              }
-              if (event.mask & OC::CONTROL_BUTTON_Y) {
+              // X or Y + Z == go fullscreen
+              if (select_mode) {
+                ToggleFullScreen();
                 break;
               }
 
