@@ -47,7 +47,7 @@ public:
   }
 
   inline bool pressed() const {
-    return state_ != 0xff;
+    return state_ == 0x00;
   }
 
   inline bool just_pressed() const {
