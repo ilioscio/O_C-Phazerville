@@ -481,13 +481,13 @@ public:
                 if (slot > 1) gfxInvert(1 + h*64, 1, 54, 10);
             }
 
-            if (select_mode) {
-              graphics.drawFrame(0, 0, 64, 64);
-              graphics.drawFrame(64, 0, 64, 64);
-            }
-
             // vertical separator
             graphics.drawLine(63, 0, 63, 63, 2);
+          }
+
+          if (select_mode) {
+            // screen border while X or Y is held, so they feel powerful (because they are)
+            graphics.drawFrame(0, 0, 128, 64);
           }
 
           // Clock indicator icons in header
@@ -575,13 +575,12 @@ public:
           return true;
         }
 
-        // cancel fullscreen or anything else
-        if (view_state != APPLETS) {
+        // cancel other view layers
+        if (view_state != APPLETS && view_state != APPLET_FULLSCREEN) {
           view_state = APPLETS;
           return true;
         }
 
-        // TODO: I kinda still want AuxButton to work in fullscreen...
         // A/B/X/Y buttons becomes aux button while editing a param
         if (active_applet[slot]->EditMode()) {
           active_applet[slot]->AuxButton();
@@ -649,8 +648,8 @@ public:
       //h %= 2;
 
       view_slot[h] = 1 - view_slot[h];
-      if (zoom_slot % 2 == h) // switch full screen slot if necessary
-        zoom_slot = HEM_SIDE(view_slot[h]*2 + h);
+      // also switch fullscreen to corresponding side/slot
+      zoom_slot = HEM_SIDE(view_slot[h]*2 + h);
     }
 
     // this brings a specific applet into view on the appropriate side
@@ -730,10 +729,11 @@ public:
         case UI::EVENT_BUTTON_PRESS:
           // A and B switch to full screen on release
           if (event.control == OC::CONTROL_BUTTON_A || event.control == OC::CONTROL_BUTTON_B) {
-            if (view_state == APPLETS) { 
-              HEM_SIDE slot = ButtonToSlot(event);
+            HEM_SIDE slot = ButtonToSlot(event);
+            if (view_state != APPLET_FULLSCREEN || zoom_slot != slot)
               SetFullScreen(slot);
-            }
+            else
+              view_state = APPLETS;
           }
 
           // X and Y swap views between North/South
